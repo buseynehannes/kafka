@@ -150,6 +150,98 @@ public class StoresTest {
     }
 
     @Test
+    public void shouldThrowIfWindowStoreSegmentIntervalBelowMinimum() {
+        final Exception e = assertThrows(IllegalArgumentException.class, () ->
+            Stores.persistentWindowStore("anyName", ofMillis(120_000L), ofMillis(1L), false, ofMillis(59_999L)));
+        assertEquals("segmentInterval must be at least 60,000 milliseconds (1 minute)", e.getMessage());
+    }
+
+    @Test
+    public void shouldThrowIfTimestampedWindowStoreSegmentIntervalBelowMinimum() {
+        final Exception e = assertThrows(IllegalArgumentException.class, () ->
+            Stores.persistentTimestampedWindowStore("anyName", ofMillis(120_000L), ofMillis(1L), false, ofMillis(59_999L)));
+        assertEquals("segmentInterval must be at least 60,000 milliseconds (1 minute)", e.getMessage());
+    }
+
+    @Test
+    public void shouldThrowIfTimestampedWindowStoreWithHeadersSegmentIntervalBelowMinimum() {
+        final Exception e = assertThrows(IllegalArgumentException.class, () ->
+            Stores.persistentTimestampedWindowStoreWithHeaders("anyName", ofMillis(120_000L), ofMillis(1L), false, ofMillis(59_999L)));
+        assertEquals("segmentInterval must be at least 60,000 milliseconds (1 minute)", e.getMessage());
+    }
+
+    @Test
+    public void shouldThrowIfWindowStoreSegmentIntervalSmallerThanWindowSize() {
+        final Exception e = assertThrows(IllegalArgumentException.class, () ->
+            Stores.persistentWindowStore("anyName", ofMillis(120_000L), ofMillis(90_000L), false, ofMillis(60_000L)));
+        assertEquals("segmentInterval must be at least as large as windowSize. Got segmentInterval=["
+            + ofMillis(60_000L) + "], windowSize=[" + ofMillis(90_000L) + "]", e.getMessage());
+    }
+
+    @Test
+    public void shouldThrowIfSessionStoreSegmentIntervalBelowMinimum() {
+        final Exception e = assertThrows(IllegalArgumentException.class, () ->
+            Stores.persistentSessionStore("anyName", ofMillis(120_000L), ofMillis(59_999L)));
+        assertEquals("segmentInterval must be at least 60,000 milliseconds (1 minute)", e.getMessage());
+    }
+
+    @Test
+    public void shouldThrowIfSessionStoreWithHeadersSegmentIntervalBelowMinimum() {
+        final Exception e = assertThrows(IllegalArgumentException.class, () ->
+            Stores.persistentSessionStoreWithHeaders("anyName", ofMillis(120_000L), ofMillis(59_999L)));
+        assertEquals("segmentInterval must be at least 60,000 milliseconds (1 minute)", e.getMessage());
+    }
+
+    @Test
+    public void shouldPassSegmentIntervalToWindowStoreSupplier() {
+        final WindowBytesStoreSupplier supplier = Stores.persistentWindowStore(
+            "store", ofMillis(120_000L), ofMillis(1L), false, ofMillis(60_000L));
+        assertEquals(60_000L, supplier.segmentIntervalMs());
+    }
+
+    @Test
+    public void shouldPassSegmentIntervalToTimestampedWindowStoreSupplier() {
+        final WindowBytesStoreSupplier supplier = Stores.persistentTimestampedWindowStore(
+            "store", ofMillis(120_000L), ofMillis(1L), false, ofMillis(60_000L));
+        assertEquals(60_000L, supplier.segmentIntervalMs());
+    }
+
+    @Test
+    public void shouldPassSegmentIntervalToTimestampedWindowStoreWithHeadersSupplier() {
+        final WindowBytesStoreSupplier supplier = Stores.persistentTimestampedWindowStoreWithHeaders(
+            "store", ofMillis(120_000L), ofMillis(1L), false, ofMillis(60_000L));
+        assertEquals(60_000L, supplier.segmentIntervalMs());
+    }
+
+    @Test
+    public void shouldPassSegmentIntervalToSessionStoreSupplier() {
+        final SessionBytesStoreSupplier supplier = Stores.persistentSessionStore(
+            "store", ofMillis(120_000L), ofMillis(60_000L));
+        assertEquals(60_000L, supplier.segmentIntervalMs());
+    }
+
+    @Test
+    public void shouldPassSegmentIntervalToSessionStoreWithHeadersSupplier() {
+        final SessionBytesStoreSupplier supplier = Stores.persistentSessionStoreWithHeaders(
+            "store", ofMillis(120_000L), ofMillis(60_000L));
+        assertEquals(60_000L, supplier.segmentIntervalMs());
+    }
+
+    @Test
+    public void shouldUseDefaultSegmentIntervalWhenNotSpecifiedForWindowStore() {
+        final WindowBytesStoreSupplier supplier = Stores.persistentWindowStore(
+            "store", ofMillis(120_000L), ofMillis(1L), false);
+        assertEquals(Math.max(120_000L / 2, 60_000L), supplier.segmentIntervalMs());
+    }
+
+    @Test
+    public void shouldUseDefaultSegmentIntervalWhenNotSpecifiedForSessionStore() {
+        final SessionBytesStoreSupplier supplier = Stores.persistentSessionStore(
+            "store", ofMillis(120_000L));
+        assertEquals(Math.max(120_000L / 2, 60_000L), supplier.segmentIntervalMs());
+    }
+
+    @Test
     public void shouldThrowIfSupplierIsNullForWindowStoreBuilder() {
         final Exception e = assertThrows(NullPointerException.class, () -> Stores.windowStoreBuilder(null, Serdes.ByteArray(), Serdes.ByteArray()));
         assertEquals("supplier cannot be null", e.getMessage());

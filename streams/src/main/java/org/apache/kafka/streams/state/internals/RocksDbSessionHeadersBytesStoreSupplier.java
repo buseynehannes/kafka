@@ -24,11 +24,21 @@ import org.apache.kafka.streams.state.SessionStore;
 public class RocksDbSessionHeadersBytesStoreSupplier implements SessionBytesStoreSupplier, HeadersBytesStoreSupplier {
     private final String name;
     private final long retentionPeriod;
+    private final Long segmentInterval;
 
     public RocksDbSessionHeadersBytesStoreSupplier(final String name,
                                                    final long retentionPeriod) {
         this.name = name;
         this.retentionPeriod = retentionPeriod;
+        this.segmentInterval = null;
+    }
+
+    public RocksDbSessionHeadersBytesStoreSupplier(final String name,
+                                                   final long retentionPeriod,
+                                                   final long segmentInterval) {
+        this.name = name;
+        this.retentionPeriod = retentionPeriod;
+        this.segmentInterval = segmentInterval;
     }
 
     @Override
@@ -55,7 +65,9 @@ public class RocksDbSessionHeadersBytesStoreSupplier implements SessionBytesStor
 
     @Override
     public long segmentIntervalMs() {
-        // Selected somewhat arbitrarily. Profiling may reveal a different value is preferable.
+        if (segmentInterval != null) {
+            return segmentInterval;
+        }
         return Math.max(retentionPeriod / 2, 60_000L);
     }
 

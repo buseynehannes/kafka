@@ -315,6 +315,48 @@ public final class Stores {
     /**
      * Create a persistent {@link WindowBytesStoreSupplier}.
      * <p>
+     * This store supplier can be passed into a {@link #windowStoreBuilder(WindowBytesStoreSupplier, Serde, Serde)}.
+     * If you want to create a {@link TimestampedWindowStore} you should use
+     * {@link #persistentTimestampedWindowStore(String, Duration, Duration, boolean, Duration)} to create a store supplier instead.
+     * <p>
+     * Note that it is not safe to change the value of {@code segmentInterval} between
+     * application restarts without clearing local state from application instances,
+     * as this may cause incorrect values to be read from the state store otherwise.
+     *
+     * @param name                  name of the store (cannot be {@code null})
+     * @param retentionPeriod       length of time to retain data in the store (cannot be negative)
+     *                              (note that the retention period must be at least long enough to contain the
+     *                              windowed data's entire life cycle, from window-start through window-end,
+     *                              and for the entire grace period)
+     * @param windowSize            size of the windows (cannot be negative)
+     * @param retainDuplicates      whether or not to retain duplicates. Turning this on will automatically disable
+     *                              caching and means that null values will be ignored.
+     * @param segmentInterval       size of segments for storing records (must be at least 60 seconds,
+     *                              and must be at least as large as {@code windowSize}).
+     *                              Records within the same segment are stored (updated and accessed)
+     *                              together. The only impact of this parameter is performance. If
+     *                              segments are large and a workload results in many records being
+     *                              collected in a single segment, performance may degrade as a result.
+     *                              On the other hand, reads that access older segments and
+     *                              out-of-order writes may slow down if there are too many segments.
+     * @return an instance of {@link WindowBytesStoreSupplier}
+     * @throws IllegalArgumentException if {@code retentionPeriod} or {@code windowSize} can't be represented as {@code long milliseconds}
+     * @throws IllegalArgumentException if {@code retentionPeriod} is smaller than {@code windowSize}
+     * @throws IllegalArgumentException if {@code segmentInterval} is less than 60,000 milliseconds or less than {@code windowSize}
+     */
+    public static WindowBytesStoreSupplier persistentWindowStore(
+        final String name,
+        final Duration retentionPeriod,
+        final Duration windowSize,
+        final boolean retainDuplicates,
+        final Duration segmentInterval
+    ) throws IllegalArgumentException {
+        return persistentWindowStore(name, retentionPeriod, windowSize, retainDuplicates, segmentInterval, RocksDbWindowBytesStoreSupplier.WindowStoreTypes.DEFAULT_WINDOW_STORE);
+    }
+
+    /**
+     * Create a persistent {@link WindowBytesStoreSupplier}.
+     * <p>
      * This store supplier can be passed into a
      * {@link #timestampedWindowStoreBuilder(WindowBytesStoreSupplier, Serde, Serde)}.
      * If you want to create a {@link WindowStore} you should use
@@ -347,6 +389,49 @@ public final class Stores {
     }
 
     /**
+     * Create a persistent {@link WindowBytesStoreSupplier}.
+     * <p>
+     * This store supplier can be passed into a
+     * {@link #timestampedWindowStoreBuilder(WindowBytesStoreSupplier, Serde, Serde)}.
+     * If you want to create a {@link WindowStore} you should use
+     * {@link #persistentWindowStore(String, Duration, Duration, boolean, Duration)} to create a store supplier instead.
+     * <p>
+     * Note that it is not safe to change the value of {@code segmentInterval} between
+     * application restarts without clearing local state from application instances,
+     * as this may cause incorrect values to be read from the state store otherwise.
+     *
+     * @param name                  name of the store (cannot be {@code null})
+     * @param retentionPeriod       length of time to retain data in the store (cannot be negative)
+     *                              (note that the retention period must be at least long enough to contain the
+     *                              windowed data's entire life cycle, from window-start through window-end,
+     *                              and for the entire grace period)
+     * @param windowSize            size of the windows (cannot be negative)
+     * @param retainDuplicates      whether or not to retain duplicates. Turning this on will automatically disable
+     *                              caching and means that null values will be ignored.
+     * @param segmentInterval       size of segments for storing records (must be at least 60 seconds,
+     *                              and must be at least as large as {@code windowSize}).
+     *                              Records within the same segment are stored (updated and accessed)
+     *                              together. The only impact of this parameter is performance. If
+     *                              segments are large and a workload results in many records being
+     *                              collected in a single segment, performance may degrade as a result.
+     *                              On the other hand, reads that access older segments and
+     *                              out-of-order writes may slow down if there are too many segments.
+     * @return an instance of {@link WindowBytesStoreSupplier}
+     * @throws IllegalArgumentException if {@code retentionPeriod} or {@code windowSize} can't be represented as {@code long milliseconds}
+     * @throws IllegalArgumentException if {@code retentionPeriod} is smaller than {@code windowSize}
+     * @throws IllegalArgumentException if {@code segmentInterval} is less than 60,000 milliseconds or less than {@code windowSize}
+     */
+    public static WindowBytesStoreSupplier persistentTimestampedWindowStore(
+        final String name,
+        final Duration retentionPeriod,
+        final Duration windowSize,
+        final boolean retainDuplicates,
+        final Duration segmentInterval
+    ) throws IllegalArgumentException {
+        return persistentWindowStore(name, retentionPeriod, windowSize, retainDuplicates, segmentInterval, RocksDbWindowBytesStoreSupplier.WindowStoreTypes.TIMESTAMPED_WINDOW_STORE);
+    }
+
+    /**
      * Creates a persistent {@link WindowBytesStoreSupplier} that preserves timestamps and headers.
      *
      * @param name                  name of the store (cannot be {@code null})
@@ -363,6 +448,39 @@ public final class Stores {
         final boolean retainDuplicates
     ) throws IllegalArgumentException {
         return persistentWindowStore(name, retentionPeriod, windowSize, retainDuplicates, TIMESTAMPED_WINDOW_STORE_WITH_HEADERS);
+    }
+
+    /**
+     * Creates a persistent {@link WindowBytesStoreSupplier} that preserves timestamps and headers.
+     * <p>
+     * Note that it is not safe to change the value of {@code segmentInterval} between
+     * application restarts without clearing local state from application instances,
+     * as this may cause incorrect values to be read from the state store otherwise.
+     *
+     * @param name                  name of the store (cannot be {@code null})
+     * @param retentionPeriod       length of time to retain data in the store (cannot be negative)
+     * @param windowSize            size of the windows (cannot be negative)
+     * @param retainDuplicates      whether or not to retain duplicates
+     * @param segmentInterval       size of segments for storing records (must be at least 60 seconds,
+     *                              and must be at least as large as {@code windowSize}).
+     *                              Records within the same segment are stored (updated and accessed)
+     *                              together. The only impact of this parameter is performance. If
+     *                              segments are large and a workload results in many records being
+     *                              collected in a single segment, performance may degrade as a result.
+     *                              On the other hand, reads that access older segments and
+     *                              out-of-order writes may slow down if there are too many segments.
+     * @return an instance of {@link WindowBytesStoreSupplier}
+     * @throws IllegalArgumentException if {@code retentionPeriod} is smaller than {@code windowSize}
+     * @throws IllegalArgumentException if {@code segmentInterval} is less than 60,000 milliseconds or less than {@code windowSize}
+     */
+    public static WindowBytesStoreSupplier persistentTimestampedWindowStoreWithHeaders(
+        final String name,
+        final Duration retentionPeriod,
+        final Duration windowSize,
+        final boolean retainDuplicates,
+        final Duration segmentInterval
+    ) throws IllegalArgumentException {
+        return persistentWindowStore(name, retentionPeriod, windowSize, retainDuplicates, segmentInterval, TIMESTAMPED_WINDOW_STORE_WITH_HEADERS);
     }
 
     private static WindowBytesStoreSupplier persistentWindowStore(
@@ -392,11 +510,60 @@ public final class Stores {
                 + windowSize + "], retention=[" + retentionPeriod + "]");
         }
 
+        return createWindowBytesStoreSupplier(name, retentionMs, defaultSegmentInterval, windowSizeMs, retainDuplicates, storeType);
+    }
+
+    private static WindowBytesStoreSupplier persistentWindowStore(
+        final String name,
+        final Duration retentionPeriod,
+        final Duration windowSize,
+        final boolean retainDuplicates,
+        final Duration segmentInterval,
+        final RocksDbWindowBytesStoreSupplier.WindowStoreTypes storeType
+    ) {
+        Objects.requireNonNull(name, "name cannot be null");
+        final String rpMsgPrefix = prepareMillisCheckFailMsgPrefix(retentionPeriod, "retentionPeriod");
+        final long retentionMs = validateMillisecondDuration(retentionPeriod, rpMsgPrefix);
+        final String wsMsgPrefix = prepareMillisCheckFailMsgPrefix(windowSize, "windowSize");
+        final long windowSizeMs = validateMillisecondDuration(windowSize, wsMsgPrefix);
+        final String siMsgPrefix = prepareMillisCheckFailMsgPrefix(segmentInterval, "segmentInterval");
+        final long segmentIntervalMs = validateMillisecondDuration(segmentInterval, siMsgPrefix);
+
+        if (retentionMs < 0L) {
+            throw new IllegalArgumentException("retentionPeriod cannot be negative");
+        }
+        if (windowSizeMs < 0L) {
+            throw new IllegalArgumentException("windowSize cannot be negative");
+        }
+        if (windowSizeMs > retentionMs) {
+            throw new IllegalArgumentException("The retention period of the window store "
+                + name + " must be no smaller than its window size. Got size=["
+                + windowSize + "], retention=[" + retentionPeriod + "]");
+        }
+        if (segmentIntervalMs < 60_000L) {
+            throw new IllegalArgumentException("segmentInterval must be at least 60,000 milliseconds (1 minute)");
+        }
+        if (segmentIntervalMs < windowSizeMs) {
+            throw new IllegalArgumentException("segmentInterval must be at least as large as windowSize. Got segmentInterval=["
+                + segmentInterval + "], windowSize=[" + windowSize + "]");
+        }
+
+        return createWindowBytesStoreSupplier(name, retentionMs, segmentIntervalMs, windowSizeMs, retainDuplicates, storeType);
+    }
+
+    private static WindowBytesStoreSupplier createWindowBytesStoreSupplier(
+        final String name,
+        final long retentionMs,
+        final long segmentIntervalMs,
+        final long windowSizeMs,
+        final boolean retainDuplicates,
+        final RocksDbWindowBytesStoreSupplier.WindowStoreTypes storeType
+    ) {
         if (storeType == TIMESTAMPED_WINDOW_STORE_WITH_HEADERS) {
             return new RocksDbWindowHeadersBytesStoreSupplier(
                 name,
                 retentionMs,
-                defaultSegmentInterval,
+                segmentIntervalMs,
                 windowSizeMs,
                 retainDuplicates
             );
@@ -404,7 +571,7 @@ public final class Stores {
             return new RocksDbWindowBytesStoreSupplier(
                 name,
                 retentionMs,
-                defaultSegmentInterval,
+                segmentIntervalMs,
                 windowSizeMs,
                 retainDuplicates,
                 storeType
@@ -481,6 +648,35 @@ public final class Stores {
     }
 
     /**
+     * Create a persistent {@link SessionBytesStoreSupplier}.
+     * <p>
+     * Note that it is not safe to change the value of {@code segmentInterval} between
+     * application restarts without clearing local state from application instances,
+     * as this may cause incorrect values to be read from the state store otherwise.
+     *
+     * @param name              name of the store (cannot be {@code null})
+     * @param retentionPeriod   length of time to retain data in the store (cannot be negative)
+     *                          (note that the retention period must be at least as long enough to
+     *                          contain the inactivity gap of the session and the entire grace period.)
+     * @param segmentInterval   size of segments for storing records (must be at least 60 seconds).
+     *                          Records within the same segment are stored (updated and accessed)
+     *                          together. The only impact of this parameter is performance. If
+     *                          segments are large and a workload results in many records being
+     *                          collected in a single segment, performance may degrade as a result.
+     *                          On the other hand, reads that access older segments and
+     *                          out-of-order writes may slow down if there are too many segments.
+     * @return an instance of a {@link  SessionBytesStoreSupplier}
+     * @throws IllegalArgumentException if {@code segmentInterval} is less than 60,000 milliseconds
+     */
+    public static SessionBytesStoreSupplier persistentSessionStore(
+        final String name,
+        final Duration retentionPeriod,
+        final Duration segmentInterval
+    ) {
+        return persistentSessionStore(name, retentionPeriod, segmentInterval, false);
+    }
+
+    /**
      * Create a persistent {@link SessionBytesStoreSupplier} with support for record headers.
      * <p>
      * Note that it is not safe to change the value of {@code retentionPeriod} between
@@ -501,6 +697,35 @@ public final class Stores {
         return persistentSessionStore(name, retentionPeriod, true);
     }
 
+    /**
+     * Create a persistent {@link SessionBytesStoreSupplier} with support for record headers.
+     * <p>
+     * Note that it is not safe to change the value of {@code segmentInterval} between
+     * application restarts without clearing local state from application instances,
+     * as this may cause incorrect values to be read from the state store otherwise.
+     *
+     * @param name              name of the store (cannot be {@code null})
+     * @param retentionPeriod   length of time to retain data in the store (cannot be negative)
+     *                          (note that the retention period must be at least as long enough to
+     *                          contain the inactivity gap of the session and the entire grace period.)
+     * @param segmentInterval   size of segments for storing records (must be at least 60 seconds).
+     *                          Records within the same segment are stored (updated and accessed)
+     *                          together. The only impact of this parameter is performance. If
+     *                          segments are large and a workload results in many records being
+     *                          collected in a single segment, performance may degrade as a result.
+     *                          On the other hand, reads that access older segments and
+     *                          out-of-order writes may slow down if there are too many segments.
+     * @return an instance of a {@link  SessionBytesStoreSupplier}
+     * @throws IllegalArgumentException if {@code segmentInterval} is less than 60,000 milliseconds
+     */
+    public static SessionBytesStoreSupplier persistentSessionStoreWithHeaders(
+        final String name,
+        final Duration retentionPeriod,
+        final Duration segmentInterval
+    ) {
+        return persistentSessionStore(name, retentionPeriod, segmentInterval, true);
+    }
+
     private static SessionBytesStoreSupplier persistentSessionStore(
         final String name,
         final Duration retentionPeriod,
@@ -516,6 +741,30 @@ public final class Stores {
             return new RocksDbSessionHeadersBytesStoreSupplier(name, retentionPeriodMs);
         } else {
             return new RocksDbSessionBytesStoreSupplier(name, retentionPeriodMs);
+        }
+    }
+
+    private static SessionBytesStoreSupplier persistentSessionStore(
+        final String name,
+        final Duration retentionPeriod,
+        final Duration segmentInterval,
+        final boolean withHeaders
+    ) {
+        Objects.requireNonNull(name, "name cannot be null");
+        final String msgPrefix = prepareMillisCheckFailMsgPrefix(retentionPeriod, "retentionPeriod");
+        final long retentionPeriodMs = validateMillisecondDuration(retentionPeriod, msgPrefix);
+        if (retentionPeriodMs < 0) {
+            throw new IllegalArgumentException("retentionPeriod cannot be negative");
+        }
+        final String siMsgPrefix = prepareMillisCheckFailMsgPrefix(segmentInterval, "segmentInterval");
+        final long segmentIntervalMs = validateMillisecondDuration(segmentInterval, siMsgPrefix);
+        if (segmentIntervalMs < 60_000L) {
+            throw new IllegalArgumentException("segmentInterval must be at least 60,000 milliseconds (1 minute)");
+        }
+        if (withHeaders) {
+            return new RocksDbSessionHeadersBytesStoreSupplier(name, retentionPeriodMs, segmentIntervalMs);
+        } else {
+            return new RocksDbSessionBytesStoreSupplier(name, retentionPeriodMs, segmentIntervalMs);
         }
     }
 
